@@ -1,13 +1,15 @@
 # A component used to inspect a spicific User. Has the user form on the top (using the UserForm component), and the IssueGrid on the bottom, which will display the issues assigned to the given user.
 class UserInspector < Netzke::Basepack::BorderLayoutPanel
 
+  action :inform_admins # open new tab with this user's inspector for all admins
+
   def configuration
     super.tap do |c|
       c[:record_id] ||= User.first.id # handy for testing
 
-      user = User.find(c[:record_id])
+      @user = User.find(c[:record_id])
 
-      c[:title] = user.name
+      c[:title] = @user.name
       c[:items] = [
         {
           region: :north,
@@ -22,7 +24,7 @@ class UserInspector < Netzke::Basepack::BorderLayoutPanel
 
         {
           region: :center,
-          title: "Issues assigned to #{user.name}",
+          title: "Issues assigned to #{@user.name}",
           border: false,
 
           class_name: "IssueGrid",
@@ -41,4 +43,17 @@ class UserInspector < Netzke::Basepack::BorderLayoutPanel
   end
 
   js_property :border, false
+
+  js_property :bbar, [:inform_admins.action]
+
+  js_method :on_inform_admins, <<-JS
+    function(){
+      this.serverInformAdmins();
+    }
+  JS
+
+  endpoint :server_inform_admins do |params|
+    Juggernaut.publish "channel1", {user_id: @user.id}
+  end
+
 end
