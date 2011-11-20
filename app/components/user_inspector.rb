@@ -1,7 +1,8 @@
 # A component used to inspect a spicific User. Has the user form on the top (using the UserForm component), and the IssueGrid on the bottom, which will display the issues assigned to the given user.
 class UserInspector < Netzke::Basepack::BorderLayoutPanel
 
-  action :inform_admins # open new tab with this user's inspector for all admins
+  action :broadcast_inform # shows a warning message about this user
+  action :broadcast_inspect # open new tab with this user's inspector for all admins
 
   def configuration
     super.tap do |c|
@@ -44,16 +45,40 @@ class UserInspector < Netzke::Basepack::BorderLayoutPanel
 
   js_property :border, false
 
-  js_property :bbar, [:inform_admins.action]
+  js_property :bbar, [:broadcast_inform.action, :broadcast_inspect.action]
 
-  js_method :on_inform_admins, <<-JS
+  js_method :on_broadcast_inform, <<-JS
     function(){
-      this.serverInformAdmins();
+      this.serverBroadcastInform();
     }
   JS
 
-  endpoint :server_inform_admins do |params|
-    Juggernaut.publish "channel1", {user_id: @user.id}
+  js_method :on_broadcast_inspect, <<-JS
+    function(){
+      this.serverBroadcastInspect();
+    }
+  JS
+
+  endpoint :server_broadcast_inspect do |params|
+    Juggernaut.publish "channel1", {
+      component: "application__workspace",
+      method: "loadChild",
+      params: ["UserInspector", {newTab: true, config: {record_id: @user.id}}],
+      authenticity_token: Netzke::Core.controller.params[:authenticity_token] # prevent the sender to react
+    }
+
+    {}
+  end
+
+  endpoint :server_broadcast_inform do |params|
+    Juggernaut.publish "channel1", {
+      component: "application",
+      method: "netzkeFeedback",
+      params: ["User #{@user.name} needs your attention!"],
+      authenticity_token: Netzke::Core.controller.params[:authenticity_token] # prevent the sender to react
+    }
+
+    {}
   end
 
 end
